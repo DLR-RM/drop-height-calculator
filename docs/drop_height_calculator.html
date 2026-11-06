@@ -1,65 +1,801 @@
 <!DOCTYPE html>
 <html lang="en">
+  <!-- Copyright (c) 2026 German Aerospace Center (DLR) --> 
+  <!-- Author: Anton Shu -->
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>It Works</title>
-    <style>
-        body {
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
-        }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Drop Height Calculator — Interactive</title>
+  
+  <!-- created static copies of npm scripts to protect privacy of users -->
+  <!-- https://cdn.plot.ly/plotly-2.32.0.min.js -->
+  <script src="./assets/plotly-2.32.0.min.js"></script>
 
-        .content {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+      svg: { fontCache: 'global', inlineMath: [['$', '$'], ['\\(', '\\)']] }
+    };
+  </script>
+  
+  <!-- <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script> --> 
+  <script src="./assets/tex-svg.js"></script>
 
-        h1 {
-            color: #2d3748;
-        }
+  <style>
+    :root{
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --accent: #ef4444;
+      --accent2: #00658b;
+      --shadow: 0 8px 24px rgba(0,0,0,.06);
+      --radius: 14px;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--text); background:var(--bg);
+    }
+    .app{
+      display:flex; min-height:100vh; gap:18px;
+      padding:18px;
+    }
+    aside{
+      width: 340px; min-width: 300px; max-width: 380px;
+      background:var(--panel); border:1px solid var(--border);
+      border-radius: var(--radius); box-shadow: var(--shadow);
+      padding:16px 14px;
+      position: sticky; top: 18px; height: calc(100vh - 36px);
+      overflow:auto;
+    }
+    main{
+      flex:1; display:flex; flex-direction:column; gap:18px; min-width: 0;
+    }
+    .section-title{
+      font-weight:700; font-size:14px; letter-spacing:.02em;
+      margin:14px 6px 8px; color:#111827; text-transform: uppercase;
+    }
+    hr.divider {
+      border: 0; border-bottom: 1px solid var(--border); margin: 20px 0 10px;
+    }
+    .control{
+      padding:10px 10px 12px; border:1px solid var(--border);
+      border-radius: 12px; background: #fff; margin: 8px 0;
+      transition: opacity 0.2s;
+    }
+    .control .row{
+      display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+    }
+    .control label{ font-size:13px; font-weight:600; }
+    .control .value{
+      font-variant-numeric: tabular-nums; color: var(--muted);
+      font-size:12px; text-align:right; min-width: 120px;
+    }
+    input[type="range"]{ width:100%; margin-top:10px; accent-color: var(--accent); }
+    .hint{ font-size:12px; color:var(--muted); margin-top:8px; line-height:1.3; }
+    
+    .range-inputs {
+      display: flex; flex-direction: row; flex-wrap: nowrap; gap: 6px; margin-top: 8px;
+      background: #f9fafb; padding: 6px; border-radius: 6px; border: 1px solid var(--border);
+    }
+    .range-inputs label {
+      font-size: 11px; font-weight: normal; display: flex; align-items: center; gap: 4px; color: var(--muted);
+      flex: 1;
+      white-space: nowrap;
+    }
+    .range-inputs input[type="number"] {
+      width: 100%; min-width: 30px; padding: 3px 4px; font-size: 11px;
+      border: 1px solid var(--border); border-radius: 4px; font-variant-numeric: tabular-nums;
+    }
 
-        .footer {
-            margin-top: auto;
-            padding: 20px;
-            text-align: center;
-        }
+    .topbar{ display:flex; gap:18px; align-items:stretch; flex-wrap:wrap; }
+    .card{
+      background:var(--panel); border:1px solid var(--border);
+      border-radius: var(--radius); box-shadow: var(--shadow);
+      padding:16px; flex:1; min-width: 280px;
+    }
+    .card h2{ margin:0 0 8px; font-size:16px; }
+    .big{ font-size: 28px; font-weight:800; margin: 8px 0 2px; font-variant-numeric: tabular-nums; }
+    .sub{ color:var(--muted); font-size:12px; margin-top:0; display:flex; gap:10px; flex-wrap:wrap; }
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      border:1px solid var(--border); border-radius:999px; padding:6px 10px; font-size:12px; color:var(--muted); background:#fff;
+    }
+    .dot{ width:8px; height:8px; border-radius:50%; background: var(--accent2); }
+    
+    /* Updated Fluid Grids */
+    .grid { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); 
+      gap: 18px; 
+    }
+    .ratio-grid { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 450px), 1fr)); 
+      gap: 18px; 
+      margin-top: 18px; 
+    }
+    
+    /* Updated Dynamic Plot Heights */
+    .plot { 
+      height: clamp(280px, 35vh, 600px); 
+      width: 100%; 
+    }
+    .ratio-plot-container { 
+      height: clamp(400px, 55vh, 900px); 
+      width: 100%; 
+    }
 
-        .footer a {
-            display: block;
-            margin: 5px 0;
-            text-decoration: none;
-            color: #0066cc;
-        }
+    .footer-note{ font-size:12px; color:var(--muted); line-height:1.4; margin-top:10px; }
+    .toggle{ display:flex; align-items:center; gap:10px; margin-top: 10px; font-size:12px; color:var(--muted); user-select:none; }
 
-        .footer a:hover {
-            text-decoration: underline;
-        }
-    </style>
+    /* New styles for extendable windows */
+    details.plot-group {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+      padding: 16px;
+    }
+    details.plot-group > summary {
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      outline: none;
+      margin: -16px;
+      padding: 16px;
+      border-radius: var(--radius);
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    details.plot-group > summary::-webkit-details-marker {
+      display: none;
+    }
+    details.plot-group > summary::before {
+      content: '▶';
+      font-size: 14px;
+      color: var(--muted);
+      transition: transform 0.2s;
+    }
+    details.plot-group[open] > summary::before {
+      transform: rotate(90deg);
+    }
+    details.plot-group > summary:hover {
+      background: #f9fafb;
+    }
+    details.plot-group > .grid {
+      margin-top: 20px;
+    }
+    details.plot-group .card.ratio-card {
+      margin-top: 18px;
+      width: 100%;
+    }
+
+    .plot-empty-wrapper {
+      position: relative;
+      width: 100%;
+    }
+    .plot-disabled-overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+      font-size: 16px;
+      font-weight: 700;
+      color: #374151;
+      background: rgba(255,255,255,0.82);
+      border: 1px dashed #cbd5e1;
+      border-radius: 12px;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .plot-empty-wrapper.reference-needed .plot-disabled-overlay {
+      display: flex;
+    }
+
+    /* Updated Media Query for Portrait/Small Screens */
+    @media (max-width: 1024px), (orientation: portrait) {
+      .app { flex-direction: column; }
+      aside { 
+        position: relative; 
+        width: 100%; 
+        height: auto; 
+        max-width: none; 
+      }
+      .grid { grid-template-columns: 1fr; }
+      .ratio-grid { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
+
 <body>
-    <div class="content">
-        <h1>To be updated...</h1>
+<div class="app">
+  <aside>
+    <div class="section-title">Configuration</div>
+    
+    <div class="control">
+      <div class="row"><label>Plot Scales & Scaling</label></div>
+      <div class="toggle" style="gap:18px; flex-wrap:wrap;">
+        <span style="display:inline-flex; align-items:center; gap:10px;">
+          <input type="checkbox" id="logY" checked />
+          <label for="logY">Log scale Y-axis</label>
+        </span>
+        <span style="display:inline-flex; align-items:center; gap:10px;">
+          <input type="checkbox" id="logX" checked />
+          <label for="logX">Log scale X-axis</label>
+        </span>
+        <span style="display:none;">
+          <input type="checkbox" id="includeInvalidY" checked />
+          <label for="includeInvalidY">Include long contact region Y limits</label>
+        </span>
+        <span style="display:none;">
+          <input type="checkbox" id="showPlotBeta" />
+          <label for="showPlotBeta">Show $\beta$ max curvature</label>
+        </span>
+		<span style="display:none;">
+          <input type="checkbox" id="showPlotGamma" checked />
+          <label for="showPlotGamma">Show $\gamma$ ratio (1.18)</label>
+        </span>
+		<span style="display:none;">
+          <input type="checkbox" id="showTestedRatios" />
+          <label for="showTestedRatios">Show tested inertia ratios (0.68, 0.45, 0.33)</label>
+        </span>
+      </div>
     </div>
 
-    <div class="footer">
-        <a href="https://rm.dlr.de/imprint/en/drop-height-calculator">
-            Imprint
-        </a>
-
-        <a href="https://rm.dlr.de/privacy/en/drop-height-calculator">
-            Privacy
-        </a>
-
-        <a href="https://rm.dlr.de/accessibility/en/drop-height-calculator">
-            Accessibility
-        </a>
+    <hr class="divider">
+    <div class="section-title">Actuator Comparison</div>
+    <div class="control">
+      <div class="row"><label for="comparePreset1">Compare Preset 1 (Green)</label></div>
+      <select id="comparePreset1" style="width: 100%; padding: 6px; margin-top: 8px; border-radius: 6px; border: 1px solid var(--border); font-family: inherit; background: #fff; color: var(--text); font-size: 13px;">
+        <option value="none">None</option>        
+        <option value="humanoids15">Humanoids15</option>
+        <option value="ral26">RAL26</option>        
+      </select>
     </div>
+    <div class="control">
+      <div class="row"><label for="comparePreset2">Compare Preset 2 (Yellow)</label></div>
+      <select id="comparePreset2" style="width: 100%; padding: 6px; margin-top: 8px; border-radius: 6px; border: 1px solid var(--border); font-family: inherit; background: #fff; color: var(--text); font-size: 13px;">
+        <option value="none">None</option>
+        <option value="humanoids15">Humanoids15</option>
+        <option value="ral26">RAL26</option>
+      </select>
+    </div>
+
+    <hr class="divider">
+    <div class="section-title">Actuator Parameters</div>
+
+    <div class="control">
+      <div class="row"><label for="actuatorPresetSelector">Actuator Preset</label></div>
+      <select id="actuatorPresetSelector" style="width: 100%; padding: 6px; margin-top: 8px; border-radius: 6px; border: 1px solid var(--border); font-family: inherit; background: #fff; color: var(--text); font-size: 13px;">
+        <option value="custom">Custom...</option>
+        <option value="humanoids15">Humanoids15</option>
+        <option value="ral26">RAL26</option>
+      </select>
+      <div style="display:flex; gap: 8px; margin-top: 10px; align-items: center;">
+        <input type="text" id="customPresetName" value="candidate1" style="flex:1; font-size: 12px; padding: 6px; border: 1px solid var(--border); border-radius: 4px;" placeholder="Name preset...">
+        <button id="savePresetBtn" style="font-size: 12px; padding: 6px 12px; border: 1px solid var(--border); background: #f9fafb; border-radius: 4px; cursor: pointer; font-weight: 600;">Save</button>
+      </div>
+    </div>
+
+    <div class="control">
+      <div class="row">
+        <label for="Ks">Stiffness $K$ (Nm/rad)</label>
+        <div class="value" id="Ks_val"></div>
+      </div>
+      <input id="Ks" type="range" min="0" max="1000" value="641" />
+      <div class="range-inputs">
+        <label>Val:<input type="number" id="Ks_num" step="any"></label>
+        <label>Min:<input type="number" id="Ks_min" value="10" step="any"></label>
+        <label>Max:<input type="number" id="Ks_max" value="100000" step="any"></label>
+      </div>
+    </div>
+
+    <div class="control" id="Jeff_block">
+      <div class="row">
+        <label for="Jeff">Reflected inertia $I_{a}$ (kg·m²)</label>
+        <div class="value" id="Jeff_val"></div>
+      </div>
+      <input id="Jeff" type="range" min="0" max="1000" value="600" />
+      <div class="range-inputs">
+        <label>Val:<input type="number" id="Jeff_num" step="any"></label>
+        <label>Min:<input type="number" id="Jeff_min" value="0.0001" step="any"></label>
+        <label>Max:<input type="number" id="Jeff_max" value="2" step="any"></label>
+      </div>
+    </div>
+
+    <div class="control" id="Jm_block">
+      <div class="row">
+        <label for="Jm">Motor inertia $I_m$ (kg·m²)</label>
+        <div class="value" id="Jm_val"></div>
+      </div>
+      <input id="Jm" type="range" min="0" max="1000" value="566" />
+      <div class="range-inputs">
+        <label>Val:<input type="number" id="Jm_num" step="any"></label>
+        <label>Min:<input type="number" id="Jm_min" value="0.000001" step="any"></label>
+        <label>Max:<input type="number" id="Jm_max" value="0.005" step="any"></label>
+      </div>
+    </div>
+
+    <div class="control" id="N_block">
+      <div class="row">
+        <label for="N">Gear ratio $N$</label>
+        <div class="value" id="N_val"></div>
+      </div>
+      <input id="N" type="range" min="1" max="250" step="1" value="9" />
+      <div class="range-inputs">
+        <label>Val:<input type="number" id="N_num" step="any"></label>
+        <label>Min:<input type="number" id="N_min" value="1" step="any"></label>
+        <label>Max:<input type="number" id="N_max" value="250" step="any"></label>
+      </div>
+    </div>
+
+    <div class="control">
+      <div class="row">
+        <label for="taumax">Max torque $\tau_\rm{max}$ (Nm)</label>
+        <div class="value" id="taumax_val"></div>
+      </div>
+      <input id="taumax" type="range" min="1" max="400" step="1" value="150" />
+      <div class="range-inputs">
+        <label>Val:<input type="number" id="taumax_num" step="any"></label>
+        <label>Min:<input type="number" id="taumax_min" value="1" step="any"></label>
+        <label>Max:<input type="number" id="taumax_max" value="400" step="any"></label>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+
+
+    <div class="section-title">Use Case Parameters</div>
+
+    <div class="control">
+      <div class="row"><label for="useCasePresetSelector">Use Case Preset</label></div>
+      <select id="useCasePresetSelector" style="width: 100%; padding: 6px; margin-top: 8px; border-radius: 6px; border: 1px solid var(--border); font-family: inherit; background: #fff; color: var(--text); font-size: 13px;">
+        <option value="custom">Custom...</option>
+        <option value="foot">Foot Impact</option>
+        <option value="knee">Knee Impact</option>
+        <option value="light">Light Impact</option>
+        <option value="agile_case">Agile Impact</option>
+      </select>
+      <div style="display:flex; gap: 8px; margin-top: 10px; align-items: center;">
+        <input type="text" id="customUseCasePresetName" value="usecase1" style="flex:1; font-size: 12px; padding: 6px; border: 1px solid var(--border); border-radius: 4px;" placeholder="Name use case...">
+        <button id="saveUseCasePresetBtn" style="font-size: 12px; padding: 6px 12px; border: 1px solid var(--border); background: #f9fafb; border-radius: 4px; cursor: pointer; font-weight: 600;">Save</button>
+      </div>
+    </div>
+    
+    <div class="control">
+      <div class="row">
+        <label for="Dt">Contact time $\Delta t$ (ms)</label>
+        <div class="value" id="Dt_val"></div>
+      </div>
+      <input id="Dt" type="range" min="0" max="50" step="any" value="2" />
+      <div class="range-inputs">
+        <label>Val:<input type="number" id="Dt_num" step="any"></label>
+        <label>Min:<input type="number" id="Dt_min" value="0" step="any"></label>
+        <label>Max:<input type="number" id="Dt_max" value="50" step="any"></label>
+      </div>
+    </div>
+
+    <div class="control">
+      <div class="row"><label>Link Inertia Mode</label></div>
+      <div class="toggle">
+        <input type="checkbox" id="computeJl">
+        <label for="computeJl">Compute $I_l$ from $I_{coll}$ and $l_{eff}$</label>
+      </div>
+    </div>
+    
+    <div class="control">
+      <div class="row">
+        <label for="Jl">Link inertia $I_l$ (kg·m²)</label>
+        <div class="value" id="Jl_val"></div>
+      </div>
+      <input id="Jl" type="range" min="0" max="1000" value="666" />
+      <div class="range-inputs">
+        <label>Val:<input type="number" id="Jl_num" step="any"></label>
+        <label>Min:<input type="number" id="Jl_min" value="0.0001" step="any"></label>
+        <label>Max:<input type="number" id="Jl_max" value="2" step="any"></label>
+      </div>
+    </div>
+
+    <div class="control" id="dqmax_block">
+      <div class="row">
+        <label for="dqmax">Max link speed $\dot{q}_\rm{max}$ (rad/s)</label>
+        <div class="value" id="dqmax_val"></div>
+      </div>
+      <input id="dqmax" type="range" min="0.1" max="20" step="0.01" value="3.14" />
+      <div class="range-inputs">
+        <label>Val:<input type="number" id="dqmax_num" step="any"></label>
+        <label>Min:<input type="number" id="dqmax_min" value="0.1" step="any"></label>
+        <label>Max:<input type="number" id="dqmax_max" value="20" step="any"></label>
+      </div>
+    </div>
+
+    <div class="control" id="pnorm_manual_block">
+      <div class="row">
+        <label for="pnorm_manual">Impulse $p_\rm{ref}$ (Nms)</label>
+        <div class="value" id="pnorm_manual_val"></div>
+      </div>
+      <input id="pnorm_manual" type="range" min="0.01" max="5" step="0.01" value="0.5" />
+      <div class="range-inputs">
+        <label>Val:<input type="number" id="pnorm_manual_num" step="any"></label>
+        <label>Min:<input type="number" id="pnorm_manual_min" value="0.01" step="any"></label>
+        <label>Max:<input type="number" id="pnorm_manual_max" value="5" step="any"></label>
+      </div>
+    </div>
+
+    <div class="control" id="hnorm_manual_block">
+      <div class="row">
+        <label for="hnorm_manual">Drop height $h_\rm{ref}$ (m)</label>
+        <div class="value" id="hnorm_manual_val"></div>
+      </div>
+      <input id="hnorm_manual" type="range" min="0.01" max="10" step="0.01" value="1.00" />
+      <div class="range-inputs">
+        <label>Val:<input type="number" id="hnorm_manual_num" step="any"></label>
+        <label>Min:<input type="number" id="hnorm_manual_min" value="0.01" step="any"></label>
+        <label>Max:<input type="number" id="hnorm_manual_max" value="10" step="any"></label>
+      </div>
+    </div>
+
+    <div class="control" id="Icoll_block">
+      <div class="row">
+        <label for="Icoll">Foot mass $m_f$ (kg)</label>
+        <div class="value" id="Icoll_val"></div>
+      </div>
+      <input id="Icoll" type="range" min="0.1" max="10" step="0.01" value="1.14" />
+      <div class="range-inputs">
+        <label>Val:<input type="number" id="Icoll_num" step="any"></label>
+        <label>Min:<input type="number" id="Icoll_min" value="0.1" step="any"></label>
+        <label>Max:<input type="number" id="Icoll_max" value="10" step="any"></label>
+      </div>
+    </div>
+
+    <div class="control" id="leff_block">
+      <div class="row">
+        <label for="leff">Lever length $l$ (m)</label>
+        <div class="value" id="leff_val"></div>
+      </div>
+      <input id="leff" type="range" min="0.01" max="0.5" step="0.001" value="0.1" />
+      <div class="range-inputs">
+        <label>Val:<input type="number" id="leff_num" step="any"></label>
+        <label>Min:<input type="number" id="leff_min" value="0.01" step="any"></label>
+        <label>Max:<input type="number" id="leff_max" value="0.5" step="any"></label>
+      </div>
+    </div>
+
+    <div class="control">
+      <div class="row">
+        <label>Gravity $g$ (m/s²)</label>
+        <div class="value">9.81 (fixed)</div>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+      <div class="topbar">
+      <div class="card">
+        <h2>Robustness Calculator</h2>
+        <div id="formula_text" style="font-size:12px;color:var(--muted);line-height:1.4">
+          <div id="formula_pext_content">
+          Calculate robustness as admissable impact impulse $p_\rm{max}$ or admissable drop height $h_\rm{max}$ for custom actuator and link parameters and impact parameters. Effective motor inertia $I_{\rm{a}}=N^2 I_m$ has a reciproacl influence on  robustness. When normalized with normalzized impact $p_\rm{ref}$ and $I_l$ the log-log plot curvature is invariant of other parameters. The ratio of maximum curvature $\gamma$ follows for a worst case contact time $\Delta_t=0$.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modified System Characteristics Card -->
+    <div class="topbar">
+      <div class="card">
+        <h2>System Characteristics</h2>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap: 16px;">
+          <div style="flex:1;">
+            <div class="sub" style="margin-bottom:2px;">System Half Period ($T_{1/2}$)</div>
+            <div class="big" id="h_Dt" style="margin-top:0;">—</div>
+            <div class="sub"><span class="pill"><span class="dot"></span> ms</span></div>
+
+            <div class="sub" style="margin-bottom:2px; margin-top:12px;">Natural Frequency ($f$)</div>
+            <div class="big" id="h_sysfreq" style="margin-top:0;">—</div>
+            <div class="sub"><span class="pill"><span class="dot"></span> Hz</span></div>
+          </div>
+		<div id="period_explenation_no_svg" style="display:none;">  
+                    <div  style="display:flex; flex-direction:row; justify-content:flex-end; align-items:center; gap:10px;">
+            <div style="font-size:11px; line-height:1.2; color:black; text-align:left; max-width: 120px;">
+Long Contact:<br>$\Delta t > T_{1/2}$. Forced oscillation.      </div>
+<img src="./assets/long_full.png" alt="Picture">
+		</div>		
+        </div>
+		<div id="period_explenation_yes_svg" style="display:none;">  
+                    <div  style="display:flex; flex-direction:row; justify-content:flex-end; align-items:center; gap:10px;">
+            <div style="font-size:11px; line-height:1.2; color:black; text-align:left; max-width: 120px;">
+              Short Contact: <br> $\Delta t \le T_{1/2}$. System response dominated by open-loop dynamics. Worst-Case Scenario.
+            </div>
+			<img src="./assets/short_full.png" alt="Picture">
+			</div>
+        </div>
+		</div>
+      </div>
+      
+      <div class="card" style="display:none;">
+        <h2>Maximum curvature on normalized coordinates $\beta$</h2>
+        <div class="big" id="beta_big">—</div>
+        <div class="sub">
+          <span class="pill"><span class="dot"></span> $\beta$ as ratio $I_m$/$I_l$</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modified Output Cards with SVGs and text -->
+    <div class="topbar">
+      <div class="card">
+        <h2>Maximum Drop Height ($h_\rm{max}$)</h2>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:16px;">
+          <div style="flex:1;">
+            <div class="big" id="h_big">—</div>
+            <div class="sub" style="margin-bottom: 8px;">
+              <span class="pill"><span class="dot"></span> $h$ in meters</span>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:row; justify-content:flex-end; align-items:center; gap:10px;">
+		  			
+
+            <div style="font-size:12px; line-height:1.2; color:black; text-align:left; max-width: 200px;">
+              Maximum drop height $h_\rm{max}$ of a robot with contact point below the concentrated foot mass $m_f$ distanced by $l$ from the center of joint $q_\text{u}$ where the maximum collision torque $\tau_\rm{max}$ is respected.
+            </div>
+			<img src="./assets/drop_simple.png" alt="Picture">
+			</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Maximum Impulse ($p_\rm{max}$)</h2>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:16px;">
+          <div style="flex:1;">
+            <div class="big" id="pext_big">—</div>
+            <div class="sub">
+              <span class="pill"><span class="dot"></span> $p$ in Nms</span>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:10px;">
+		  						<img src="./assets/single_joint_impulse.png" alt="Picture">
+
+            <div style="font-size:12px; line-height:1.2; color:black; text-align:left; max-width: 400px;">
+              Maximum Impulse $p_\rm{max}=\int^{\Delta t} \tau_{ext} dt $ on the link with inertia $I_u$ where the maximum collision torque $\tau_\rm{max}$ is respected.
+            </div>
+
+			
+	</div>
+			</div>
+      </div>
+    </div>
+
+    
+    <div class="topbar">
+      <div id="warningBox" style="margin-top:10px; padding:10px; border-radius:10px; border:1px solid #fca5a5; background:#fff1f2; color:#7f1d1d; font-size:13px; display:none;">
+        ⚠️ Infeasible parameter set: validity condition violated.<br>
+        <span id="feasValue"></span> ≥ 1
+      </div>
+      <div id="gammaWarningBox" style="margin-top:10px; padding:10px; border-radius:10px; border:1px solid #fde047; background:#fef9c3; color:#854d0e; font-size:13px; display:none;">
+        ⚠️ $\gamma$ curvature values likely not representative.<br>
+        $\Delta_t / (\sqrt{I_l/K_s}\pi) = $ <span id="gammaRatioValue"></span> $\geq$ 0.25
+      </div>
+    </div>
+
+    <!-- Drop Height Plots Section -->
+    <details class="plot-group" id="details_h" >
+      <summary>Maximum Drop Height ($h_\rm{max}$) Plots</summary>
+
+      <!-- Normalization Control Panel for H -->
+      <div class="norm-control-panel" style="background: #f9fafb; padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border); margin: 16px 0; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <input type="checkbox" id="normalizeH" style="width: 16px; height: 16px; cursor: pointer;" />
+          <label for="normalizeH" style="font-size: 13px; font-weight: 600; cursor: pointer;">Normalize Drop Height ($h_\rm{max}/h_\rm{ref}$)</label>
+        </div>
+        <div id="normH_options_container" style="display: none; align-items: center; gap: 15px; flex-wrap: wrap;">
+          <span style="font-size: 12px; font-weight: 600; color: var(--muted);">Method:</span>
+          <label style="font-size: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+            <input type="radio" name="normH_option" value="a" checked />
+            a) By specified $p_\rm{ref}$
+          </label>
+          <label style="font-size: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+            <input type="radio" name="normH_option" value="b" />
+            b) By specified $\dot{q}_\rm{max}$
+          </label>
+          <label style="font-size: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+            <input type="radio" name="normH_option" value="c" />
+            c) By specified $h_\rm{ref}$
+          </label>
+        </div>
+        <div style="font-size: 12px; font-weight: 600; color: var(--text);">
+          $h_\rm{ref}$: <span id="normH_value" style="font-variant-numeric: tabular-nums;">—</span>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card" id="cardPlotHN_h">
+          <h2>$h$ vs Gear Ratio $N$</h2>
+          <div id="plotHN_h" class="plot"></div>
+        </div>
+        <div class="card" id="cardPlotHKs_h">
+          <h2>$h$ vs Stiffness $K$</h2>
+          <div id="plotKs_h" class="plot"></div>
+        </div>
+        <div class="card" id="cardPlotHDt_h">
+          <h2>$h$ vs Contact time $\Delta t$</h2>
+          <div id="plotDt_h" class="plot"></div>
+		</div>
+        <div class="card" id="cardPlotHJeff_h">
+          <h2>$h$ vs Reflected inertia $I_{a}$</h2>
+          <div id="plotHJeff_h" class="plot"></div>
+        </div>
+        <div class="card" id="cardPlotHJm_h">
+          <h2>$h$ vs Motor Inertia $I_m$</h2>
+          <div id="plotJm_h" class="plot"></div>
+        </div>
+        <div class="card" id="cardPlotHJl_h">
+          <h2>$h$ vs Link Inertia $I_l$</h2>
+          <div id="plotJl_h" class="plot"></div>
+        </div>
+		<div class="card" id="cardPlotHTaumax_h">
+			<h2>$h$ vs Max Collision Torque $\tau_\rm{max}$</h2>
+			<div id="plotTaumax_h" class="plot"></div>
+		
+        </div>
+        <div class="card" id="cardPlotHIcoll_h">
+          <h2>$h$ vs Foot mass $m_f$</h2>
+          <div id="plotIcoll_h" class="plot"></div>
+        </div>
+        <div class="card" id="cardPlotHleff_h">
+          <h2>$h$ vs lever length $l$</h2>
+          <div id="plotleff_h" class="plot"></div>
+        </div>
+      </div>
+      <div class="ratio-grid">
+        <div class="card ratio-card" id="cardPlotRatio_h" style="margin-top: 0;">
+          <h2>$h$ vs Ratio $I_{a}/I_l$</h2>
+          <div class="plot-empty-wrapper" id="wrap_plotRatio_h"><div id="plotRatio_h" class="plot ratio-plot-container"></div><div class="plot-disabled-overlay">reference value needed - activate normalization</div></div>
+        </div>
+        <div class="card ratio-card" id="cardPlotEnergyRatio_h" style="margin-top: 0;">
+          <h2>$h$ vs Energy Ratio $E_{pot}/E_{kin}$</h2>
+          <div class="plot-empty-wrapper" id="wrap_plotEnergyRatio_h"><div id="plotEnergyRatio_h" class="plot ratio-plot-container"></div><div class="plot-disabled-overlay">reference value needed - activate normalization</div></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- Admissible Impact Plots Section -->
+    <details class="plot-group" id="details_pext" open>
+      <summary>Admissible Impulse ($p_\rm{max}$) Plots</summary>
+
+      <!-- Normalization Control Panel for P_ext -->
+      <div class="norm-control-panel" style="background: #f9fafb; padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border); margin: 16px 0; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <input type="checkbox" id="normalizeP" style="width: 16px; height: 16px; cursor: pointer;" />
+          <label for="normalizeP" style="font-size: 13px; font-weight: 600; cursor: pointer;">Normalize Impact ( $p_\rm{max} / \it{p}_\rm{ref}$ )</label>
+        </div>
+        <div id="normP_options_container" style="display: none; align-items: center; gap: 15px; flex-wrap: wrap;">
+          <span style="font-size: 12px; font-weight: 600; color: var(--muted);">Method:</span>
+          <label style="font-size: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+            <input type="radio" name="normP_option" value="a" checked />
+            a) By specified $p_\rm{ref}$
+          </label>
+          <label style="font-size: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+            <input type="radio" name="normP_option" value="b" />
+            b) By specified $\dot{q}_\rm{max}$
+          </label>
+          <label style="font-size: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+            <input type="radio" name="normP_option" value="c" />
+            c) By specified $h_\rm{ref}$
+          </label>
+        </div>
+        <div style="font-size: 12px; font-weight: 600; color: var(--text);">
+          $p_\rm{ref}$: <span id="normP_value" style="font-variant-numeric: tabular-nums;">—</span>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card" id="cardPlotHN_pext">
+          <h2>$p_\rm{max}$ vs Gear Ratio $N$</h2>
+          <div id="plotHN_pext" class="plot"></div>
+        </div>
+        <div class="card" id="cardPlotHKs_pext">
+          <h2>$p_\rm{max}$ vs Stiffness $K$</h2>
+          <div id="plotKs_pext" class="plot"></div>
+        </div>		
+        <div class="card" id="cardPlotHDt_pext">
+          <h2>$p_\rm{max}$ vs Contact time $\Delta_t$</h2>
+          <div id="plotDt_pext" class="plot"></div>
+        </div>
+        <div class="card" id="cardPlotHJeff_pext">
+          <h2>$p_\rm{max}$ vs Reflected inertia $I_\rm{a}$</h2>
+          <div id="plotHJeff_pext" class="plot"></div>
+        </div>
+        <div class="card" id="cardPlotHJm_pext">
+          <h2>$p_\rm{max}$ vs Motor Inertia $I_m$</h2>
+          <div id="plotJm_pext" class="plot"></div>
+        </div>
+        <div class="card" id="cardPlotHJl_pext">
+          <h2>$p_\rm{max}$ vs Link Inertia $I_l$</h2>
+          <div id="plotJl_pext" class="plot"></div>
+        </div>
+        <div class="card" id="cardPlotHIcoll_pext">
+          <h2>$p_\rm{max}$ vs Foot mass mass $m_f$</h2>
+          <div id="plotIcoll_pext" class="plot"></div>
+        </div>
+        <div class="card" id="cardPlotHleff_pext">
+          <h2>$p_\rm{max}$ vs Lever length $l$</h2>
+          <div id="plotleff_pext" class="plot"></div>
+        </div>
+		<div class="card" id="cardPlotHTaumax_pext">
+			<h2>$p_\rm{max}$ vs Max Collision Torque $\tau_\rm{max}$</h2>
+			<div id="plotTaumax_pext" class="plot"></div>
+		</div>
+      </div>
+      <div class="ratio-grid">
+        <div class="card ratio-card" id="cardPlotRatio_pext" style="margin-top: 0;">
+          <h2>$p_\rm{max}$ vs Ratio $I_{a}/I_l$</h2>
+          <div class="plot-empty-wrapper" id="wrap_plotRatio_pext"><div id="plotRatio_pext" class="plot ratio-plot-container"></div><div class="plot-disabled-overlay">reference value needed - activate normalization</div></div>
+        </div>
+        <div class="card ratio-card" id="cardPlotEnergyRatio_pext" style="margin-top: 0;">
+          <h2>$p_\rm{max}$ vs Energy Ratio $E_{pot}/E_{kin}$</h2>
+          <div class="plot-empty-wrapper" id="wrap_plotEnergyRatio_pext"><div id="plotEnergyRatio_pext" class="plot ratio-plot-container"></div><div class="plot-disabled-overlay">reference value needed - activate normalization</div></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- Eigenfrequency Plots Section -->
+    <details class="plot-group" id="details_freq" open>
+      <summary>Natural frequency ($f$) Plots</summary>
+      <div class="grid">
+        <div class="card" id="cardPlotFKs">
+          <h2>System natural frequency $f$ vs Stiffness $K$</h2>
+          <div id="plotFKs" class="plot"></div>
+        </div>
+        <div class="card" id="cardPlotFJl">
+          <h2>System natural frequency $f$ vs Link Inertia $I_\rm{l}$</h2>
+          <div id="plotFJl" class="plot"></div>
+        </div>
+        <div class="card" id="cardPlotFJm">
+          <h2>System natural frequency $f$ vs Motor Inertia $I_\rm{m}$</h2>
+          <div id="plotFJm" class="plot"></div>
+        </div>
+        <div class="card" id="cardPlotFJeff">
+          <h2>System natural frequency $f$ vs Reflected inertia $I_\rm{a}$</h2>
+          <div id="plotFJeff" class="plot"></div>
+        </div>
+      </div>
+    </details>
+<div class="topbar">
+<div class="card">
+        <h2>About</h2>
+        <div style="margin-bottom: 12px; font-size: 13px; line-height: 1.5;">
+          &copy; DLR e.V. 2026.
+        </div>
+        <div style="margin-bottom: 16px; font-size: 13px; line-height: 1.5; color: var(--muted);">
+          This calculator is published alongside [1]. It builds on the previous publications [2] and [3]:
+          <ul style="padding-left: 20px; margin-top: 8px;">
+            <li style="margin-bottom: 6px;">[1] A. Shu, K. Fruend, F. Beck, T. Ehlert, A. Kolb, N. Topalovic, C. Raschel, S. Wolf, M. Hutter, and J. Lee, <i>IEEE-RAS International Conference on Humanoid Robots (Humanoids)</i>, 2026 (Accepted). <a href="https://elib.dlr.de/228065/" style="color: var(--accent2); text-decoration: none;">Preprint </a>.</li>
+            <li style="margin-bottom: 6px;">[2] A. Shu, F. Loeffl, A. Kolb, K. Frund, D. Wandinger, F. Beck, J. Reinecke, M. Grebenstein, M. Hutter, and J. Lee, <i>IEEE Robotics and Automation Letters</i>, 2026. <a href="https://doi.org/10.1109/LRA.2026.3710324" style="color: var(--accent2); text-decoration: none;">doi: 10.1109/LRA.2026.3710324</a>.</li>
+            <li style="margin-bottom: 6px;">[3] A. Shu, C. Raschel, M. Keppler, A. Wedler, and M. Gorner, <i>IEEE Transactions on Robotics</i>, vol. 40, pp. 3657–3675, 2024,  <a href="https://doi.org/10.1109/TRO.2024.3422049" style="color: var(--accent2); text-decoration: none;">doi: 10.1109/TRO.2024.3422049</a>.</li>
+          </ul>
+        </div>
+        <div class="sub" style="gap: 10px;">
+          <span class="pill">Contact: anton.shu@dlr.de</span>
+          <a href="https://rm.dlr.de/imprint/en/drop-height-calculator" class="pill" style="text-decoration: none;">Imprint</a> 
+          <a href="https://rm.dlr.de/privacy/en/drop-height-calculator" class="pill" style="text-decoration: none;">Privacy</a> 
+          <a href="https://rm.dlr.de/accessibility/en/drop-height-calculator" class="pill" style="text-decoration: none;">Accessibility</a>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="./assets/drop_height_calculus.js"></script>
 </body>
 </html>
